@@ -16,8 +16,8 @@
  */
 package com.veracloud.messagebus;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Provides support for basic intra-application message passing.
@@ -28,7 +28,7 @@ import java.util.Map;
  */
 public class MessageBus {
 
-  private static final Map<String, ListenerList<MessageBusListener<?>>> messageTopics = new HashMap<String, ListenerList<MessageBusListener<?>>>();
+  private static final Map<String, ListenerList<MessageBusListener<?>>> messageTopics = new ConcurrentHashMap<String, ListenerList<MessageBusListener<?>>>();
 
   /**
    * Subscribes a listener to a message topic.
@@ -44,9 +44,7 @@ public class MessageBus {
     ListenerList<MessageBusListener<?>> topicListeners = messageTopics.get(topic);
 
     if (topicListeners == null) {
-      topicListeners = new ListenerList<MessageBusListener<?>>() {
-        // empty block
-      };
+      topicListeners = new ListenerList<MessageBusListener<?>>();
       messageTopics.put(topic, topicListeners);
     }
 
@@ -77,14 +75,23 @@ public class MessageBus {
   }
 
   /**
-   * Sends a message to subscribed topic listeners.
+   * Sends a message to subscribed listeners.
    * 
-   * @param message
+   * @param message the message, can't be {@code null}
    */
   public static <T> void sendMessage(T message) {
+    if (message == null) {
+      throw new NullPointerException("message can't be null");
+    }
     sendMessage(message.getClass().getName(), message);
   }
 
+  /**
+   * Sends a message to subscribed topic listeners.
+   * 
+   * @param topic the topic to send it to
+   * @param message the message, may be {@code null}
+   */
   @SuppressWarnings("unchecked")
   public static <T> void sendMessage(String topic, T message) {
     ListenerList<MessageBusListener<?>> topicListeners = messageTopics.get(topic);

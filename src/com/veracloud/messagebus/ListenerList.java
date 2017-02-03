@@ -13,180 +13,91 @@
  */
 package com.veracloud.messagebus;
 
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Abstract base class for listener lists.
- * <p>
- * NOTE This class is not inherently thread safe. Subclasses that require
- * thread-safe access should synchronize method access appropriately. Callers
- * must manually synchronize on the listener list instance to ensure thread
- * safety during iteration.
+ * 
+ * @author ggeorg
+ *
+ * @param <T>
  */
-public abstract class ListenerList<T> implements Iterable<T> {
+public class ListenerList<T> implements Iterable<T> {
 
-	// Iterator through the current array of elements
-	private class NodeIterator implements Iterator<T> {
-		private int index;
+  private final List<T> list;
 
-		public NodeIterator() {
-			this.index = 0;
-		}
+  public ListenerList() {
+    list = new CopyOnWriteArrayList<T>();
+  }
 
-		@Override
-		public boolean hasNext() {
-			return (index < last);
-		}
+  public void add(T listener) {
+    if (indexOf(listener) >= 0) {
+      // System.err.println("Duplicate listener " + listener + " added to " +
+      // this);
+      return;
+    }
 
-		@Override
-		public T next() {
-			if (index >= last) {
-				throw new NoSuchElementException();
-			}
+    list.add(listener);
+  }
 
-			return list[index++];
-		}
+  public void remove(T listener) {
+    int index = indexOf(listener);
 
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
-		}
-	}
+    if (index < 0) {
+      // System.err.println("Nonexistent listener " + listener + " removed from
+      // " + this);
+      return;
+    }
 
-	private static final int DEFAULT_SIZE = 5;
+    list.remove(index);
+  }
 
-	// The current array of items (some of which are null)
-	// All non-null objects are at the beginning of the array
-	// and the array is reorganized on "remove"
-	@SuppressWarnings({ "unchecked" })
-	private T[] list = (T[]) new Object[DEFAULT_SIZE];
-	// The current length of the active list
-	private int last = 0;
+  private int indexOf(T listener) {
+    return list.indexOf(listener);
+  }
 
-	/**
-	 * Adds a listener to the list, if it has not previously been added.
-	 *
-	 * @param listener
-	 */
-	public void add(T listener) {
-		if (indexOf(listener) >= 0) {
-			System.err.println("Duplicate listener " + listener + " added to " + this);
-			return;
-		}
+  public boolean contains(T listener) {
+    return list.contains(listener);
+  }
 
-		// If no slot is available, increase the size of the array
-		if (last >= list.length) {
-			list = Arrays.copyOf(list, list.length + DEFAULT_SIZE);
-		}
+  public boolean isEmpty() {
+    return list.isEmpty();
+  }
 
-		list[last++] = listener;
-	}
+  public int size() {
+    return list.size();
+  }
 
-	/**
-	 * Removes a listener from the list, if it has previously been added.
-	 *
-	 * @param listener
-	 */
-	public void remove(T listener) {
-		int index = indexOf(listener);
+  public T get(int index) {
+    return list.get(index);
+  }
 
-		if (index < 0) {
-			System.err.println("Nonexistent listener " + listener + " removed from " + this);
-			return;
-		}
+  @Override
+  public Iterator<T> iterator() {
+    return list.iterator();
+  }
 
-		// Once we find the entry in the list, copy the rest of the
-		// existing entries down by one position
-		if (index < last - 1) {
-			System.arraycopy(list, index + 1, list, index, last - 1 - index);
-		}
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
 
-		list[--last] = null;
-	}
+    sb.append("ListenerList [");
 
-	private int indexOf(T listener) {
-		if (listener == null) {
-			throw new IllegalArgumentException("listener is null.");
-		}
-		for (int i = 0; i < last; i++) {
-			if (list[i] == listener) {
-				return i;
-			}
-		}
-		return -1;
-	}
+    int i = 0;
+    for (T item : this) {
+      if (i > 0) {
+        sb.append(", ");
+      }
 
-	/**
-	 * Tests the existence of a listener in the list.
-	 *
-	 * @param listener
-	 *
-	 * @return <tt>true</tt> if the listener exists in the list; <tt>false</tt>,
-	 *         otherwise.
-	 */
-	public boolean contains(T listener) {
-		return indexOf(listener) >= 0;
-	}
+      sb.append(item);
+      i++;
+    }
 
-	/**
-	 * Tests the emptiness of the list.
-	 *
-	 * @return <tt>true</tt> if the list contains no listeners; <tt>false</tt>,
-	 *         otherwise.
-	 */
-	public boolean isEmpty() {
-		return last == 0;
-	}
+    sb.append("]");
 
-	/**
-	 * Get the number of elements in the list.
-	 *
-	 * @return the number of elements.
-	 */
-	public int getLength() {
-		return last;
-	}
-
-	/**
-	 * Get the indexed element in the list.
-	 *
-	 * @return the element at position <tt>index</tt> or throw an
-	 *         <tt>IndexOutOfBoundsException</tt>
-	 */
-	public T get(int index) {
-		if (index < 0 || index >= last) {
-			throw new IndexOutOfBoundsException("index " + index + " out of bounds [0," + last + "].");
-		}
-		return list[index];
-	}
-
-	@Override
-	public Iterator<T> iterator() {
-		return new NodeIterator();
-	}
-
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-
-		sb.append(getClass().getName());
-		sb.append(" [");
-
-		int i = 0;
-		for (T item : this) {
-			if (i > 0) {
-				sb.append(", ");
-			}
-
-			sb.append(item);
-			i++;
-		}
-
-		sb.append("]");
-
-		return sb.toString();
-	}
+    return sb.toString();
+  }
 
 }
